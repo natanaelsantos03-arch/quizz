@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quiz – Desenvolvimento Web</title>
+<style>
+  /* ===== Variáveis de tema (claro/escuro) ===== */
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1f2937; --muted: #6b7280;
+    --primary: #4f46e5; --ok: #16a34a; --ok-bg: #dcfce7;
+    --err: #dc2626; --err-bg: #fee2e2; --line: #e5e7eb;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f172a; --card: #1e293b; --text: #e5e7eb; --muted: #94a3b8;
+      --primary: #818cf8; --ok: #4ade80; --ok-bg: #14532d;
+      --err: #f87171; --err-bg: #7f1d1d; --line: #334155;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f172a; --card: #1e293b; --text: #e5e7eb; --muted: #94a3b8;
+    --primary: #818cf8; --ok: #4ade80; --ok-bg: #14532d;
+    --err: #f87171; --err-bg: #7f1d1d; --line: #334155;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.6rem; margin: 8px 0; }
+  h2 { font-size: 1.2rem; margin: 0 0 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .hidden { display: none; }
+
+  /* ===== Formulários e botões ===== */
+  input {
+    width: 100%; padding: 12px; margin: 6px 0 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 1rem;
+  }
+  button {
+    padding: 12px 18px; border: 0; border-radius: 10px; cursor: pointer;
+    background: var(--primary); color: #fff; font-size: 1rem; font-weight: 600;
+  }
+  button.ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ===== Quiz ===== */
+  .progress { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 14px; }
+  .progress > div { height: 100%; width: 0; background: var(--primary); transition: width .3s; }
+  .option {
+    display: block; width: 100%; text-align: left; margin-bottom: 10px;
+    background: var(--bg); color: var(--text); border: 2px solid var(--line);
+  }
+  .option:hover:not(:disabled) { border-color: var(--primary); }
+  .option.correct { background: var(--ok-bg); border-color: var(--ok); }   /* acerto = verde */
+  .option.wrong   { background: var(--err-bg); border-color: var(--err); } /* erro = vermelho */
+  .explanation { border-left: 5px solid; padding: 12px 14px; border-radius: 8px; margin: 12px 0; }
+  .explanation.ok  { background: var(--ok-bg);  border-color: var(--ok); }
+  .explanation.err { background: var(--err-bg); border-color: var(--err); }
+
+  /* ===== Ranking ===== */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px; text-align: left; border-bottom: 1px solid var(--line); }
+  .score-big { font-size: 2.6rem; font-weight: 800; margin: 4px 0; }
+/* ===== Tema vibrante (sobrescreve as cores base) ===== */
+  :root {
+    --bg: #f3f0ff; --card: #ffffff; --text: #1e1b4b; --muted: #5b5b8a;
+    --primary: #7c3aed; --accent: #ec4899; --ok: #00c853; --ok-bg: #d4ffe6;
+    --err: #ff1744; --err-bg: #ffe0e6; --line: #d8ccff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #130a2e; --card: #231452; --text: #f5f3ff; --muted: #c4b5fd;
+      --primary: #a78bfa; --accent: #f472b6; --ok: #34ffa0; --ok-bg: #0b5d3b;
+      --err: #ff6b8a; --err-bg: #7a1233; --line: #4c3a9a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #130a2e; --card: #231452; --text: #f5f3ff; --muted: #c4b5fd;
+    --primary: #a78bfa; --accent: #f472b6; --ok: #34ffa0; --ok-bg: #0b5d3b;
+    --err: #ff6b8a; --err-bg: #7a1233; --line: #4c3a9a;
+  }
+  body { background: radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--primary) 25%, transparent), transparent 45%), radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 40%), var(--bg); background-attachment: fixed; }
+  h1 { font-size: 2rem; background: linear-gradient(90deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .card { border: 2px solid var(--line); box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 18%, transparent); }
+  button:not(.option):not(.ghost) { background: linear-gradient(90deg, var(--primary), var(--accent)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent); transition: transform .15s; }
+  button:not(.option):hover:not(:disabled) { transform: translateY(-2px); }
+  .progress > div { background: linear-gradient(90deg, #22d3ee, var(--primary), var(--accent)); }
+  .option { font-weight: 600; border-width: 2px; }
+  .option.correct { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 35%, transparent); }
+  .option.wrong { box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 35%, transparent); }
+  code { background: color-mix(in srgb, var(--primary) 18%, transparent); padding: 2px 6px; border-radius: 6px; font-size: .9em; }
+  .badge { display: inline-block; padding: 3px 12px; border-radius: 99px; color: #fff; font-size: .8rem; font-weight: 700; background: linear-gradient(90deg, #06b6d4, var(--primary)); margin-bottom: 6px; }
+  .medal { font-size: 1.4rem; font-weight: 800; margin: 4px 0 12px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat { text-align: center; padding: 10px; border-radius: 12px; background: var(--bg); border: 2px solid var(--line); }
+  .stat b { display: block; font-size: 1.5rem; color: var(--primary); }
+  .review li { margin-bottom: 8px; padding: 8px 12px; border-radius: 10px; list-style: none; }
+  .review li.ok { background: var(--ok-bg); border-left: 5px solid var(--ok); }
+  .review li.err { background: var(--err-bg); border-left: 5px solid var(--err); }
+  .review { padding: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🧠 Quiz de Desenvolvimento Web</h1>
+  <p class="muted">HTML, CSS e JavaScript · <span id="visits">0</span> acessos</p>
+
+  <!-- TELA 0: LOGIN -->
+  <section id="screen-login" class="card">
+    <h2>Entrar</h2>
+    <p class="muted">Digite seu nome e uma senha numérica (PIN). Se o nome ainda não existe, a conta é criada automaticamente. Suas tentativas ficam salvas.</p>
+    <label for="user">Nome</label>
+    <input id="user" maxlength="20" autocomplete="username">
+    <label for="pin">PIN (4 a 8 números)</label>
+    <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password">
+    <p id="login-msg" class="muted" role="alert"></p>
+    <button id="btn-login">Entrar</button>
+  </section>
+
+  <!-- TELA 1: INÍCIO -->
+  <section id="screen-start" class="card hidden">
+    <h2>Olá, <span id="who"></span>!</h2>
+    <p>São 10 perguntas de 10 pontos cada. Após cada resposta você vê uma explicação comentada. Só entra no ranking quem fizer <strong>mais de 40 pontos</strong>.</p>
+    <div class="row">
+      <button id="btn-play">Começar quiz</button>
+      <button id="btn-logout" class="ghost">Sair</button>
+    </div>
+    <h2 style="margin-top:20px">Suas tentativas</h2>
+    <div id="attempts" class="muted">Nenhuma tentativa ainda.</div>
+  </section>
+
+  <!-- TELA 2: PERGUNTA ATUAL -->
+  <section id="screen-quiz" class="card hidden">
+    <div class="progress"><div id="bar"></div></div>
+    <p class="muted"><span id="counter"></span> · Pontos: <span id="live-score">0</span> · 🔥 Sequência: <span id="streak">0</span></p>
+    <span id="badge" class="badge"></span>
+    <h2 id="question"></h2>
+    <div id="options"></div>
+    <div id="feedback" class="explanation hidden" aria-live="polite"></div>
+    <button id="btn-next" class="hidden">Próxima</button>
+  </section>
+
+  <!-- TELA 3: RESULTADO FINAL -->
+  <section id="screen-result" class="card hidden">
+    <h2>Resultado final</h2>
+    <div class="score-big"><span id="final-score">0</span> pontos</div>
+    <div id="medal" class="medal"></div>
+    <div class="stats">
+      <div class="stat"><b id="st-hits">0</b>Acertos</div>
+      <div class="stat"><b id="st-miss">0</b>Erros</div>
+      <div class="stat"><b id="st-pct">0%</b>Aproveitamento</div>
+      <div class="stat"><b id="st-streak">0</b>Maior sequência</div>
+    </div>
+    <p id="result-msg"></p>
+    <h2>Revisão das respostas</h2>
+    <ul id="review" class="review"></ul>
+    <div class="row">
+      <button id="btn-again">Jogar de novo</button>
+      <button id="btn-finish" class="ghost">Encerrar</button>
+    </div>
+  </section>
+
+  <!-- TELA 4: ENCERRAMENTO (diferente das demais) -->
+  <section id="screen-end" class="card hidden" style="text-align:center">
+    <div style="font-size:3rem">👋</div>
+    <h2>Obrigado por jogar, <span id="end-who"></span>!</h2>
+    <p id="end-msg"></p>
+    <button id="btn-restart">Voltar ao início</button>
+  </section>
+
+  <!-- RANKING (visível em todas as telas) -->
+  <section class="card">
+    <h2>🏆 Ranking – Top 10</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Jogador</th><th>Pontos</th></tr></thead>
+        <tbody id="ranking"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =========================================================
+   1. CONTEÚDO PEDAGÓGICO – cada pergunta tem "explanation"
+   ========================================================= */
+const QUESTIONS = [
+  { text: "Qual tag HTML5 representa o conteúdo principal único de uma página?",
+    options: ["<div>", "<main>", "<section>", "<span>"], answer: 1,
+    explanation: "<main> marca o conteúdo central da página e deve aparecer uma única vez. <div> e <span> não têm significado semântico; <section> agrupa trechos temáticos." },
+  { text: "Qual propriedade CSS altera a cor do texto?",
+    options: ["background-color", "font-style", "color", "text-decoration"], answer: 2,
+    explanation: "A propriedade color define a cor do texto. background-color pinta o fundo, font-style define itálico e text-decoration controla sublinhado." },
+  { text: "Como se declara uma constante em JavaScript moderno?",
+    options: ["var x = 1", "let x = 1", "const x = 1", "constant x = 1"], answer: 2,
+    explanation: "const cria uma referência que não pode ser reatribuída. var e let permitem reatribuição e constant não existe na linguagem." },
+  { text: "Qual método seleciona um elemento pelo seu id?",
+    options: ["document.getElementById()", "document.queryAll()", "document.findId()", "window.select()"], answer: 0,
+    explanation: "getElementById recebe o id e devolve o elemento. Os outros nomes não existem no DOM (o correto para seletores CSS seria querySelector)." },
+  { text: "Qual unidade CSS é relativa à largura da janela do navegador?",
+    options: ["px", "em", "vw", "pt"], answer: 2,
+    explanation: "vw equivale a 1% da largura da viewport, útil em layouts responsivos. px e pt são absolutas; em depende do tamanho da fonte." },
+  { text: "O que o operador === faz em JavaScript?",
+    options: ["Atribui um valor", "Compara valor e tipo", "Compara só o valor", "Concatena textos"], answer: 1,
+    explanation: "=== é a igualdade estrita: 5 === '5' é falso, pois os tipos diferem. == converteria o tipo antes de comparar." },
+  { text: "Qual atributo torna uma imagem acessível para leitores de tela?",
+    options: ["title", "src", "alt", "href"], answer: 2,
+    explanation: "alt descreve a imagem em texto, lido por leitores de tela e exibido se a imagem falhar. src é só o endereço e href pertence a links." },
+  { text: "Qual técnica CSS adapta o layout a diferentes tamanhos de tela?",
+    options: ["Media queries", "Cookies", "Callbacks", "Hoisting"], answer: 0,
+    explanation: "Media queries (@media) aplicam estilos conforme largura, orientação etc. Cookies, callbacks e hoisting são conceitos de outras áreas." },
+  { text: "Qual método adiciona um item ao final de um array?",
+    options: ["shift()", "push()", "pop()", "slice()"], answer: 1,
+    explanation: "push() insere no final. pop() remove do final, shift() remove do início e slice() apenas copia uma parte do array." },
+  { text: "Qual método de evento reage a um clique do usuário?",
+    options: ["addEventListener('click', ...)", "onLoadOnly()", "window.alertClick", "document.write('click')"], answer: 0,
+    explanation: "addEventListener('click', função) registra um ouvinte de clique. As demais opções não existem ou não servem para tratar eventos." }
+];
+/* Informações extras de cada pergunta: categoria e dica com exemplo de código */
+const EXTRA = [
+  { cat: "HTML · Semântica", example: "<main><h1>Título</h1></main>" },
+  { cat: "CSS · Cores", example: "p { color: #7c3aed; }" },
+  { cat: "JavaScript · Variáveis", example: "const PI = 3.14;" },
+  { cat: "JavaScript · DOM", example: "document.getElementById('quiz')" },
+  { cat: "CSS · Unidades", example: "h1 { font-size: 5vw; }" },
+  { cat: "JavaScript · Operadores", example: "5 === '5' // false" },
+  { cat: "HTML · Acessibilidade", example: "<img src='gato.png' alt='Gato preto'>" },
+  { cat: "CSS · Responsividade", example: "@media (max-width: 600px) { ... }" },
+  { cat: "JavaScript · Arrays", example: "[1, 2].push(3) // [1, 2, 3]" },
+  { cat: "JavaScript · Eventos", example: "btn.addEventListener('click', abrir)" }
+];
+QUESTIONS.forEach((q, i) => Object.assign(q, EXTRA[i]));  // junta as informações extras
+const POINTS_PER_QUESTION = 10;  // 10 perguntas × 10 = 100 pontos
+const MIN_SCORE_RANKING = 40;    // só pontuação MAIOR que 40 entra no ranking
+
+/* =========================================================
+   2. CAMADA DE ARMAZENAMENTO
+   Usa o banco compartilhado (db) quando disponível e,
+   caso contrário, o localStorage (apenas neste navegador).
+   ========================================================= */
+let db = null;
+const $ = (id) => document.getElementById(id);
+
+const store = {
+  // Lê um documento (retorna objeto ou null)
+  async get(path) {
+    try {
+      if (db) { const s = await db.doc(path).get(); return s.exists ? s.data() : null; }
+      return JSON.parse(localStorage.getItem("quiz:" + path));
+    } catch (e) { return null; }
+  },
+  // Grava um documento
+  async set(path, data) {
+    try {
+      if (db) await db.doc(path).set(data);
+      else localStorage.setItem("quiz:" + path, JSON.stringify(data));
+    } catch (e) { console.error("Erro ao salvar", e); }
+  },
+  // Lista os documentos de uma coleção
+  async list(col) {
+    try {
+      if (db) { const s = await db.collection(col).get(); return s.docs.map(d => d.data()); }
+      return JSON.parse(localStorage.getItem("quiz:list:" + col)) || [];
+    } catch (e) { return []; }
+  },
+  // Mantém índice local (usado apenas no modo localStorage)
+  indexLocal(col, item) {
+    if (db) return;
+    try {
+      const k = "quiz:list:" + col;
+      const arr = (JSON.parse(localStorage.getItem(k)) || []).filter(x => x.name !== item.name);
+      arr.push(item);
+      localStorage.setItem(k, JSON.stringify(arr));
+    } catch (e) { /* ignora */ }
+  }
+};
+
+/* =========================================================
+   3. ESTADO E UTILIDADES
+   ========================================================= */
+let player = null;               // { name, attempts: [...] }
+let current = 0, score = 0, answered = false;
+let streak = 0, bestStreak = 0, log = [];   // sequência de acertos e histórico da partida
+
+// Mostra somente a tela informada
+function show(id) {
+  ["login", "start", "quiz", "result", "end"].forEach(s =>
+    $("screen-" + s).classList.toggle("hidden", s !== id));
+}
+
+// Gera hash SHA-256 do PIN (evita guardar a senha em texto puro)
+async function hashPin(pin) {
+  if (!window.crypto || !crypto.subtle) return pin;
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("quiz-salt:" + pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Escapa texto antes de inserir no HTML (segurança)
+function esc(t) {
+  const d = document.createElement("div"); d.textContent = t; return d.innerHTML;
+}
+
+// ID seguro do documento a partir do nome
+const slug = (n) => n.toLowerCase().replace(/[^a-z0-9]/g, "_") || "x";
+
+/* =========================================================
+   4. LOGIN E CONTADOR DE ACESSOS
+   ========================================================= */
+async function countVisit() {
+  const meta = (await store.get("meta/visits")) || { total: 0 };
+  meta.total += 1;
+  await store.set("meta/visits", meta);
+  $("visits").textContent = meta.total;
+}
+
+async function login() {
+  const name = $("user").value.trim();
+  const pin = $("pin").value.trim();
+  const msg = $("login-msg");
+  if (name.length < 2) { msg.textContent = "Digite um nome com pelo menos 2 letras."; return; }
+  if (!/^\d{4,8}$/.test(pin)) { msg.textContent = "O PIN deve ter de 4 a 8 números."; return; }
+
+  const id = slug(name), hash = await hashPin(pin);
+  let acc = await store.get("players/" + id);
+
+  if (acc && acc.pin !== hash) { msg.textContent = "PIN incorreto para este nome."; return; }
+  if (!acc) acc = { name, pin: hash, attempts: [] };   // cria conta nova
+  acc.name = acc.name || name;
+  await store.set("players/" + id, acc);               // nome salvo no sistema
+  store.indexLocal("players", { name: acc.name });
+
+  player = { id, name: acc.name, attempts: acc.attempts || [] };
+  msg.textContent = ""; $("pin").value = "";
+  await countVisit();
+  openStart();
+}
+
+// Exibe a tela inicial com o histórico de tentativas
+function openStart() {
+  $("who").textContent = player.name;
+  const box = $("attempts");
+  box.innerHTML = player.attempts.length
+    ? "<ul>" + player.attempts.slice(-5).reverse().map(a =>
+        `<li>${esc(a.date)} — ${a.score} pontos</li>`).join("") + "</ul>"
+    : "Nenhuma tentativa ainda.";
+  show("start");
+}
+
+/* =========================================================
+   5. LÓGICA DO QUIZ
+   ========================================================= */
+function startQuiz() {
+  current = 0; score = 0; streak = 0; bestStreak = 0; log = [];
+  show("quiz"); renderQuestion();
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  answered = false;
+  $("counter").textContent = `Pergunta ${current + 1} de ${QUESTIONS.length}`;
+  $("live-score").textContent = score;
+  $("bar").style.width = (current / QUESTIONS.length * 100) + "%";
+  $("question").textContent = q.text;
+  $("badge").textContent = q.cat;
+  $("streak").textContent = streak;
+  $("feedback").classList.add("hidden");
+  $("btn-next").classList.add("hidden");
+  $("btn-next").textContent = current === QUESTIONS.length - 1 ? "Ver resultado" : "Próxima";
+
+  const box = $("options"); box.innerHTML = "";
+  q.options.forEach((opt, i) => {
+    const b = document.createElement("button");
+    b.className = "option"; b.textContent = opt;   // textContent evita injetar HTML
+    b.addEventListener("click", () => answer(i));
+    box.appendChild(b);
+  });
+}
+
+// Valida a resposta, pinta verde/vermelho e mostra a explicação
+function answer(index) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[current];
+  const buttons = document.querySelectorAll(".option");
+  buttons.forEach((b, i) => {
+    b.disabled = true;
+    if (i === q.answer) b.classList.add("correct");
+    else if (i === index) b.classList.add("wrong");
+  });
+
+  const hit = index === q.answer;
+  if (hit) score += POINTS_PER_QUESTION;
+  streak = hit ? streak + 1 : 0;
+  bestStreak = Math.max(bestStreak, streak);
+  $("streak").textContent = streak;
+  log.push({ n: current + 1, text: q.text, hit, chosen: q.options[index], right: q.options[q.answer] });           // cálculo automático da pontuação
+  $("live-score").textContent = score;
+
+  const fb = $("feedback");
+  fb.className = "explanation " + (hit ? "ok" : "err");
+  fb.innerHTML = `<strong>${hit ? "✅ Acertou!" : "❌ Errou."}</strong> ${esc(q.explanation)}<br><br>💡 <strong>Dica:</strong> <code>${esc(q.example)}</code>`;
+  $("btn-next").classList.remove("hidden");
+}
+
+function next() {
+  current++;
+  if (current < QUESTIONS.length) renderQuestion();
+  else finish();
+}
+
+// Fim do quiz: salva a tentativa e atualiza o ranking se a nota for > 40
+async function finish() {
+  $("bar").style.width = "100%";
+  $("final-score").textContent = score;
+
+  // Estatísticas, medalha e revisão detalhada da partida
+  const hits = log.filter(l => l.hit).length;
+  $("st-hits").textContent = hits;
+  $("st-miss").textContent = QUESTIONS.length - hits;
+  $("st-pct").textContent = Math.round(hits / QUESTIONS.length * 100) + "%";
+  $("st-streak").textContent = bestStreak;
+  $("medal").textContent = score === 100 ? "🏆 Mestre da Web"
+    : score > 70 ? "🥇 Avançado" : score > 40 ? "🥈 Intermediário" : "🥉 Iniciante";
+  $("review").innerHTML = log.map(l => `<li class="${l.hit ? "ok" : "err"}">
+    ${l.hit ? "✅" : "❌"} <strong>${l.n}.</strong> ${esc(l.text)}<br>
+    <span class="muted">${l.hit ? "Você acertou: " : "Sua resposta: " + esc(l.chosen) + " · Correta: "}${l.hit ? esc(l.right) : esc(l.right)}</span></li>`).join("");
+
+  player.attempts.push({ date: new Date().toLocaleString("pt-BR"), score });
+  const acc = (await store.get("players/" + player.id)) || { name: player.name };
+  acc.attempts = player.attempts;
+  await store.set("players/" + player.id, acc);
+
+  let text = "Você não passou de " + MIN_SCORE_RANKING + " pontos, então não entrou no ranking. Tente de novo!";
+  if (score > MIN_SCORE_RANKING) {
+    const old = await store.get("ranking/" + player.id);
+    if (!old || score > old.score) {               // mantém só a melhor pontuação
+      const entry = { name: player.name, score };
+      await store.set("ranking/" + player.id, entry);
+      store.indexLocal("ranking", entry);
+    }
+    text = "Parabéns! Sua pontuação entrou no ranking. 🎉";
+  }
+  $("result-msg").textContent = text;
+  show("result");
+  loadRanking();
+}
+
+/* =========================================================
+   6. RANKING (sempre 10 posições)
+   ========================================================= */
+async function loadRanking() {
+  const list = (await store.list("ranking"))
+    .sort((a, b) => b.score - a.score).slice(0, 10);
+  let html = "";
+  for (let i = 0; i < 10; i++) {                   // preenche as 10 posições
+    const r = list[i];
+    html += `<tr><td>${i + 1}º</td><td>${r ? esc(r.name) : "—"}</td><td>${r ? r.score : "—"}</td></tr>`;
+  }
+  $("ranking").innerHTML = html;
+}
+
+/* =========================================================
+   7. EVENTOS E INICIALIZAÇÃO
+   ========================================================= */
+$("btn-login").addEventListener("click", login);
+$("pin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+$("btn-play").addEventListener("click", startQuiz);
+$("btn-next").addEventListener("click", next);
+$("btn-again").addEventListener("click", startQuiz);
+$("btn-logout").addEventListener("click", () => { player = null; show("login"); });
+$("btn-finish").addEventListener("click", () => {
+  $("end-who").textContent = player.name;
+  const best = Math.max(...player.attempts.map(a => a.score));
+  $("end-msg").textContent = `Você fez ${player.attempts.length} tentativa(s). Melhor pontuação: ${best} pontos.`;
+  show("end");
+});
+$("btn-restart").addEventListener("click", () => { player = null; show("login"); });
+
+// Tenta ligar o banco compartilhado; sem ele, usa localStorage
+(async function init() {
+  try {
+    if (window.claude) db = await window.claude.use("db");
+  } catch (e) { db = null; }
+  const meta = await store.get("meta/visits");
+  $("visits").textContent = meta ? meta.total : 0;
+  loadRanking();
+})();
+</script>
+</body>
+</html>
